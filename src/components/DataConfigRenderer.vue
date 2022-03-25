@@ -138,11 +138,10 @@ const rateFormatter = new Intl.NumberFormat('en-US', {
 });
 
 const props = defineProps<{
-  selectedDate: string;
   modelValue: DataConfig;
   positivityThresholds: Thresholds;
   dailyRateThresholds: Thresholds;
-  data: DataRecord[];
+  data: Record<string, DataRecord>;
   cityList: Set<string>;
 }>();
 
@@ -227,12 +226,10 @@ function totalWeight(): number {
     .reduce((acc, w) => acc + w, 0);
 }
 
-function fetch(city: string, date: string, metric: Metric) {
-  const record = props.data.find(
-    (v) => v.city === city && v.report_date === date
-  );
+function fetch(city: string, metric: Metric) {
+  const record = props.data[city];
   if (!record) {
-    throw `Unable to find record for ${city} and report date ${date}`;
+    throw `Unable to find record for ${city}`;
   }
   switch (metric) {
     case Metric.DAILY_RATE:
@@ -243,10 +240,10 @@ function fetch(city: string, date: string, metric: Metric) {
 }
 
 function getPositivity(di: DataInput) {
-  return fetch(di.city, props.selectedDate, Metric.POSITIVITY);
+  return fetch(di.city, Metric.POSITIVITY);
 }
 function getDailyRate(di: DataInput) {
-  return fetch(di.city, props.selectedDate, Metric.DAILY_RATE);
+  return fetch(di.city, Metric.DAILY_RATE);
 }
 
 function netPositivity() {
@@ -257,18 +254,12 @@ function netPositivity() {
 
 function positivityContribution(di: DataInput) {
   if (!di.active) return 0;
-  return (
-    (fetch(di.city, props.selectedDate, Metric.POSITIVITY) * di.weight) /
-    totalWeight()
-  );
+  return (fetch(di.city, Metric.POSITIVITY) * di.weight) / totalWeight();
 }
 
 function dailyRateContribution(di: DataInput) {
   if (!di.active) return 0;
-  return (
-    (fetch(di.city, props.selectedDate, Metric.DAILY_RATE) * di.weight) /
-    totalWeight()
-  );
+  return (fetch(di.city, Metric.DAILY_RATE) * di.weight) / totalWeight();
 }
 
 function netDailyRate() {

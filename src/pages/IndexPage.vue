@@ -13,7 +13,7 @@
           :selected-date="selectedDate"
           :positivity-thresholds="positivityThresholds"
           :daily-rate-thresholds="dailyRateThresholds"
-          :data="data"
+          :data="currentData()"
           :city-list="cityList"
           v-model="dataConfigs[index]"
         >
@@ -27,7 +27,7 @@
           :selected-date="selectedDate"
           :positivity-thresholds="positivityThresholds"
           :daily-rate-thresholds="dailyRateThresholds"
-          :data="data"
+          :data="currentData()"
           :city-list="cityList"
           v-model="newDataConfig"
         >
@@ -86,12 +86,22 @@ onMounted(() => {
   loadConfigs();
 });
 
-function dates(): string[] {
-  return Array.from(props.dateList.values()).sort().reverse();
+function currentData(): Record<string, DataRecord> {
+  const r: Record<string, DataRecord> = {};
+  props.data.forEach((dr) => {
+    if (dr.report_date === selectedDate.value) {
+      r[dr.city] = dr;
+    }
+  });
+  return r;
 }
 
 // Date Selection
 const selectedDate = ref('');
+
+function dates(): string[] {
+  return Array.from(props.dateList.values()).sort().reverse();
+}
 
 watch(props.dateList, () => {
   selectedDate.value = dates()[0];
