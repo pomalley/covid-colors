@@ -48,3 +48,29 @@ export interface DataInput {
   weight: number;
   active: boolean;
 }
+
+export enum Colors {
+  RED = 'red',
+  ORANGE = 'orange',
+  YELLOW = 'yellow',
+  BLUE = 'blue',
+}
+
+export function quasarColor(c: Colors): string {
+  switch (c) {
+    case Colors.RED:
+      return 'red';
+    case Colors.ORANGE:
+      return 'orange';
+    case Colors.YELLOW:
+      return 'yellow-7';
+    case Colors.BLUE:
+      return 'blue';
+  }
+}
+
+export interface Thresholds {
+  red: number;
+  orange: number;
+  yellow: number;
+}

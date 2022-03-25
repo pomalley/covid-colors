@@ -14,15 +14,21 @@
           Net daily rate: {{ rateFormatter.format(netDailyRate()) }}
         </q-item>
         <q-item v-for="di in dataInputs" :key="di.city">
-          {{ di.city }}
-          {{
-            pctFormatter.format(fetch(di.city, selectedDate, Metric.POSITIVITY))
-          }}
-          {{
-            rateFormatter.format(
-              fetch(di.city, selectedDate, Metric.DAILY_RATE)
-            )
-          }}
+          <q-chip
+            :color="
+              quasarColor(worstClass(getPositivity(di), getDailyRate(di)))
+            "
+          >
+            {{ di.city }}
+          </q-chip>
+          <q-chip :color="quasarColor(positivityClass(getPositivity(di)))">
+            Positivity:
+            {{ pctFormatter.format(getPositivity(di)) }}
+          </q-chip>
+          <q-chip :color="quasarColor(dailyRateClass(getDailyRate(di)))">
+            Daily Rate:
+            {{ rateFormatter.format(getDailyRate(di)) }}
+          </q-chip>
           <q-slider
             v-model="di.weight"
             :min="0"
@@ -34,7 +40,9 @@
           {{ pctFormatter.format(positivityContribution(di)) }}
           {{ rateFormatter.format(dailyRateContribution(di)) }}
           <q-toggle v-model="di.active">Active</q-toggle>
-          <q-btn @click="removeDataInput(di)">Remove</q-btn>
+          <q-btn @click="removeDataInput(di)" color="primary" rounded outline>
+            Remove
+          </q-btn>
         </q-item>
         <q-item>
           <q-select
@@ -56,8 +64,15 @@
             </template>
           </q-select>
           <q-btn
-            @click="() => newDataInput(selectedCity)"
+            @click="
+              () => {
+                newDataInput(selectedCity);
+                selectedCity = '';
+              }
+            "
             :disable="!(selectedCity && cityList.has(selectedCity))"
+            color="primary"
+            rounded
           >
             Add
           </q-btn>
@@ -77,7 +92,13 @@
 </template>
 
 <script setup lang="ts">
-import { DataInput, DataRecord } from 'src/components/models';
+import {
+  Colors,
+  DataInput,
+  DataRecord,
+  Thresholds,
+  quasarColor,
+} from 'src/components/models';
 import { reactive, ref, watch } from 'vue';
 
 const pctFormatter = new Intl.NumberFormat('en-US', {
@@ -93,6 +114,8 @@ const props = defineProps<{
   data: DataRecord[];
   cityList: Set<string>;
   dateList: Set<string>;
+  positivityThresholds: Thresholds;
+  dailyRateThresholds: Thresholds;
 }>();
 
 // City Selection
@@ -174,6 +197,13 @@ function fetch(city: string, date: string, metric: Metric) {
   }
 }
 
+function getPositivity(di: DataInput) {
+  return fetch(di.city, selectedDate.value, Metric.POSITIVITY);
+}
+function getDailyRate(di: DataInput) {
+  return fetch(di.city, selectedDate.value, Metric.DAILY_RATE);
+}
+
 function netPositivity() {
   return dataInputs.map(positivityContribution).reduce((acc, w) => acc + w, 0);
 }
@@ -196,5 +226,28 @@ function dailyRateContribution(di: DataInput) {
 
 function netDailyRate() {
   return dataInputs.map(dailyRateContribution).reduce((acc, w) => acc + w, 0);
+}
+
+function positivityClass(positivity: number): Colors {
+  if (positivity >= props.positivityThresholds.red) return Colors.RED;
+  if (positivity >= props.positivityThresholds.orange) return Colors.ORANGE;
+  if (positivity >= props.positivityThresholds.yellow) return Colors.YELLOW;
+  return Colors.BLUE;
+}
+
+function dailyRateClass(dailyRate: number): Colors {
+  if (dailyRate >= props.dailyRateThresholds.red) return Colors.RED;
+  if (dailyRate >= props.dailyRateThresholds.orange) return Colors.ORANGE;
+  if (dailyRate >= props.dailyRateThresholds.yellow) return Colors.YELLOW;
+  return Colors.BLUE;
+}
+
+function worstClass(positivity: number, dailyRate: number): Colors {
+  const pClass = positivityClass(positivity);
+  const rClass = dailyRateClass(dailyRate);
+  if (pClass == Colors.RED || rClass == Colors.RED) return Colors.RED;
+  if (pClass == Colors.ORANGE || rClass == Colors.ORANGE) return Colors.ORANGE;
+  if (pClass == Colors.YELLOW || rClass == Colors.YELLOW) return Colors.YELLOW;
+  return Colors.BLUE;
 }
 </script>
