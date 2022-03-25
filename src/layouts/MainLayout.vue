@@ -17,43 +17,64 @@
 
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
-        <q-item-label header> Put Some Stuff Here </q-item-label>
-        <q-item><q-toggle v-model="darkMode" label="Dark Mode" /></q-item>
+        <q-separator inset />
         <q-item-label header>Positivity Thresholds</q-item-label>
         <q-item>
           <q-input outlined v-model.number="positivityThresholds.red">
-            <template v-slot:append><q-chip>Red Positivity</q-chip></template>
+            <template v-slot:append>
+              <q-chip :color="quasarColor(Colors.RED)"> Red </q-chip>
+            </template>
           </q-input>
         </q-item>
         <q-item>
           <q-input outlined v-model.number="positivityThresholds.orange">
-            <template v-slot:append
-              ><q-chip>Orange Positivity</q-chip></template
-            >
+            <template v-slot:append>
+              <q-chip :color="quasarColor(Colors.ORANGE)"> Orange </q-chip>
+            </template>
           </q-input>
         </q-item>
         <q-item>
           <q-input outlined v-model.number="positivityThresholds.yellow">
-            <template v-slot:append
-              ><q-chip>Yellow Positivity</q-chip></template
-            >
+            <template v-slot:append>
+              <q-chip :color="quasarColor(Colors.YELLOW)"> Yellow </q-chip>
+            </template>
           </q-input>
         </q-item>
         <q-item>
+          <q-chip :color="quasarColor(Colors.BLUE)">
+            Blue is anything lower
+          </q-chip>
+        </q-item>
+        <q-separator inset />
+        <q-item-label header>Case Rate Thresholds</q-item-label>
+        <q-item>
           <q-input outlined v-model.number="dailyRateThresholds.red">
-            <template v-slot:append><q-chip>Red Case Rate</q-chip></template>
+            <template v-slot:append>
+              <q-chip :color="quasarColor(Colors.RED)"> Red </q-chip>
+            </template>
           </q-input>
         </q-item>
         <q-item>
           <q-input outlined v-model.number="dailyRateThresholds.orange">
-            <template v-slot:append><q-chip>Orange Case Rate</q-chip></template>
+            <template v-slot:append>
+              <q-chip :color="quasarColor(Colors.ORANGE)"> Orange </q-chip>
+            </template>
           </q-input>
         </q-item>
         <q-item>
           <q-input outlined v-model.number="dailyRateThresholds.yellow">
-            <template v-slot:append><q-chip>Yellow Case Rate</q-chip></template>
+            <template v-slot:append>
+              <q-chip :color="quasarColor(Colors.YELLOW)"> Yellow </q-chip>
+            </template>
           </q-input>
         </q-item>
+        <q-item>
+          <q-chip :color="quasarColor(Colors.BLUE)">
+            Blue is anything lower
+          </q-chip>
+        </q-item>
+        <q-separator inset />
+        <q-item><q-toggle v-model="darkMode" label="Dark Mode" /></q-item>
       </q-list>
     </q-drawer>
 
@@ -78,6 +99,7 @@ import {
   DataRecord,
   parseRow,
   Thresholds,
+  quasarColor,
 } from 'src/components/models';
 
 const $q = useQuasar();
@@ -138,11 +160,11 @@ async function fetchData() {
 const darkMode = ref(false);
 
 function initDarkMode() {
-  darkMode.value = Boolean(localStorage.darkMode);
+  darkMode.value = JSON.parse(localStorage.darkMode);
 }
 
 watch(darkMode, (newDarkMode: boolean) => {
   $q.dark.set(newDarkMode);
-  localStorage.darkMode = Boolean(newDarkMode);
+  localStorage.darkMode = JSON.stringify(newDarkMode);
 });
 </script>

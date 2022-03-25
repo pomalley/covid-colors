@@ -74,3 +74,8 @@ export interface Thresholds {
   orange: number;
   yellow: number;
 }
+
+export interface DataConfig {
+  name: string;
+  dataInputs: DataInput[];
+}

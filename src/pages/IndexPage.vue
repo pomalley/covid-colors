@@ -6,78 +6,55 @@
       v-if="!data || data.length === 0"
     />
     <template v-if="data && data.length > 0">
-      <q-list>
-        <q-item>
-          Net positivity: {{ pctFormatter.format(netPositivity()) }}
-        </q-item>
-        <q-item>
-          Net daily rate: {{ rateFormatter.format(netDailyRate()) }}
-        </q-item>
-        <q-item v-for="di in dataInputs" :key="di.city">
-          <q-chip
-            :color="
-              quasarColor(worstClass(getPositivity(di), getDailyRate(di)))
-            "
-          >
-            {{ di.city }}
-          </q-chip>
-          <q-chip :color="quasarColor(positivityClass(getPositivity(di)))">
-            Positivity:
-            {{ pctFormatter.format(getPositivity(di)) }}
-          </q-chip>
-          <q-chip :color="quasarColor(dailyRateClass(getDailyRate(di)))">
-            Daily Rate:
-            {{ rateFormatter.format(getDailyRate(di)) }}
-          </q-chip>
-          <q-slider
-            v-model="di.weight"
-            :min="0"
-            :max="100"
-            label
-            label-always
-          />
-          Contribution:
-          {{ pctFormatter.format(positivityContribution(di)) }}
-          {{ rateFormatter.format(dailyRateContribution(di)) }}
-          <q-toggle v-model="di.active">Active</q-toggle>
-          <q-btn @click="removeDataInput(di)" color="primary" rounded outline>
-            Remove
-          </q-btn>
-        </q-item>
-        <q-item>
-          <q-select
-            rounded
-            outlined
-            v-model="selectedCity"
-            label="Add City"
-            use-input
-            hide-selected
-            fill-input
-            input-debounce="0"
-            :options="cityOptions"
-            @filter="citiesFilter"
-          >
-            <template v-slot:no-option>
-              <q-item>
-                <q-item-section class="text-grey"> No results </q-item-section>
-              </q-item>
-            </template>
-          </q-select>
-          <q-btn
-            @click="
-              () => {
-                newDataInput(selectedCity);
-                selectedCity = '';
-              }
-            "
-            :disable="!(selectedCity && cityList.has(selectedCity))"
-            color="primary"
-            rounded
-          >
-            Add
-          </q-btn>
-        </q-item>
-        <q-item>
+      <div class="column justify-evenly" style="width: 100%">
+        <data-config-renderer
+          v-for="(dc, index) in dataConfigs"
+          :key="dc.name"
+          :selected-date="selectedDate"
+          :positivity-thresholds="positivityThresholds"
+          :daily-rate-thresholds="dailyRateThresholds"
+          :data="data"
+          :city-list="cityList"
+          v-model="dataConfigs[index]"
+        >
+          <template v-slot:footer>
+            <q-btn color="warning" outline @click="() => deleteConfig(index)">
+              Delete Config
+            </q-btn>
+          </template>
+        </data-config-renderer>
+        <data-config-renderer
+          :selected-date="selectedDate"
+          :positivity-thresholds="positivityThresholds"
+          :daily-rate-thresholds="dailyRateThresholds"
+          :data="data"
+          :city-list="cityList"
+          v-model="newDataConfig"
+        >
+          <template v-slot:footer>
+            <div class="row justify-center">
+              <q-btn
+                color="secondary"
+                outline
+                class="q-ma-xs"
+                @click="newConfig"
+                :disable="
+                  !newDataConfig.name || !newDataConfig.dataInputs.length
+                "
+              >
+                {{
+                  !newDataConfig.name
+                    ? 'Set a name'
+                    : !newDataConfig.dataInputs.length
+                    ? 'Add a city'
+                    : `Save "${newDataConfig.name}"`
+                }}
+              </q-btn>
+            </div>
+          </template>
+        </data-config-renderer>
+
+        <div class="row q-ma-sm justify-center">
           <q-select
             rounded
             outlined
@@ -85,30 +62,17 @@
             label="Report Date"
             :options="dates()"
           />
-        </q-item>
-      </q-list>
+        </div>
+      </div>
     </template>
   </q-page>
 </template>
 
 <script setup lang="ts">
-import {
-  Colors,
-  DataInput,
-  DataRecord,
-  Thresholds,
-  quasarColor,
-} from 'src/components/models';
-import { reactive, ref, watch } from 'vue';
+import { DataRecord, Thresholds, DataConfig } from 'src/components/models';
+import DataConfigRenderer from 'src/components/DataConfigRenderer.vue';
 
-const pctFormatter = new Intl.NumberFormat('en-US', {
-  maximumSignificantDigits: 3,
-  style: 'percent',
-});
-
-const rateFormatter = new Intl.NumberFormat('en-US', {
-  maximumSignificantDigits: 3,
-});
+import { reactive, ref, watch, onMounted } from 'vue';
 
 const props = defineProps<{
   data: DataRecord[];
@@ -118,25 +82,12 @@ const props = defineProps<{
   dailyRateThresholds: Thresholds;
 }>();
 
-// City Selection
-const cityOptions = ref(cities());
-const selectedCity = ref('');
-
-function cities(): string[] {
-  return Array.from(props.cityList.values()).sort();
-}
+onMounted(() => {
+  loadConfigs();
+});
 
 function dates(): string[] {
   return Array.from(props.dateList.values()).sort().reverse();
-}
-
-function citiesFilter(val: string, update: (fn: () => void) => void) {
-  update(() => {
-    const text = val.toLowerCase();
-    cityOptions.value = cities().filter(
-      (v) => v.toLowerCase().indexOf(text) > -1
-    );
-  });
 }
 
 // Date Selection
@@ -146,108 +97,37 @@ watch(props.dateList, () => {
   selectedDate.value = dates()[0];
 });
 
-// Data Inputs
-const dataInputs = reactive<DataInput[]>([]);
+// Data Configs
+const dataConfigs = reactive<DataConfig[]>([]);
+const newDataConfig = reactive<DataConfig>({ name: '', dataInputs: [] });
 
-function newDataInput(city: string) {
-  if (!city || !props.cityList.has(city)) {
-    console.log(`Invalid city: ${city}.`);
-    return;
+function newConfig() {
+  if (!newDataConfig.name) return;
+  const existing = dataConfigs.find((dc) => dc.name === newDataConfig.name);
+  if (existing) {
+    existing.dataInputs = JSON.parse(JSON.stringify(newDataConfig.dataInputs));
+  } else {
+    dataConfigs.push(JSON.parse(JSON.stringify(newDataConfig)));
   }
-  if (dataInputs.find((di) => di.city === city) !== undefined) {
-    console.log(`Cravenly refusing to add another ${city}.`);
-    return;
+  newDataConfig.name = '';
+  newDataConfig.dataInputs = [];
+}
+
+function deleteConfig(index: number) {
+  dataConfigs.splice(index, 1);
+}
+
+// save/load data
+const CONFIGS_LOCAL_KEY = 'dataConfigs';
+
+watch(dataConfigs, (newConfigs) => {
+  localStorage.setItem(CONFIGS_LOCAL_KEY, JSON.stringify(newConfigs));
+});
+
+function loadConfigs() {
+  const data = localStorage.getItem(CONFIGS_LOCAL_KEY);
+  if (data) {
+    Object.assign(dataConfigs, JSON.parse(data));
   }
-  dataInputs.push({ city: city, weight: 50, active: true });
-}
-
-function removeDataInput(di: DataInput) {
-  let index = -1;
-  while ((index = dataInputs.findIndex((x) => x.city === di.city)) > -1) {
-    dataInputs.splice(index, 1);
-  }
-}
-
-// Computations
-
-enum Metric {
-  POSITIVITY,
-  DAILY_RATE,
-}
-
-function totalWeight(): number {
-  return dataInputs
-    .filter((di) => di.active)
-    .map((di) => di.weight)
-    .reduce((acc, w) => acc + w, 0);
-}
-
-function fetch(city: string, date: string, metric: Metric) {
-  const record = props.data.find(
-    (v) => v.city === city && v.report_date === date
-  );
-  if (!record) {
-    throw `Unable to find record for ${city} and report date ${date}`;
-  }
-  switch (metric) {
-    case Metric.DAILY_RATE:
-      return record.daily_rate;
-    case Metric.POSITIVITY:
-      return record.pct_positivity;
-  }
-}
-
-function getPositivity(di: DataInput) {
-  return fetch(di.city, selectedDate.value, Metric.POSITIVITY);
-}
-function getDailyRate(di: DataInput) {
-  return fetch(di.city, selectedDate.value, Metric.DAILY_RATE);
-}
-
-function netPositivity() {
-  return dataInputs.map(positivityContribution).reduce((acc, w) => acc + w, 0);
-}
-
-function positivityContribution(di: DataInput) {
-  if (!di.active) return 0;
-  return (
-    (fetch(di.city, selectedDate.value, Metric.POSITIVITY) * di.weight) /
-    totalWeight()
-  );
-}
-
-function dailyRateContribution(di: DataInput) {
-  if (!di.active) return 0;
-  return (
-    (fetch(di.city, selectedDate.value, Metric.DAILY_RATE) * di.weight) /
-    totalWeight()
-  );
-}
-
-function netDailyRate() {
-  return dataInputs.map(dailyRateContribution).reduce((acc, w) => acc + w, 0);
-}
-
-function positivityClass(positivity: number): Colors {
-  if (positivity >= props.positivityThresholds.red) return Colors.RED;
-  if (positivity >= props.positivityThresholds.orange) return Colors.ORANGE;
-  if (positivity >= props.positivityThresholds.yellow) return Colors.YELLOW;
-  return Colors.BLUE;
-}
-
-function dailyRateClass(dailyRate: number): Colors {
-  if (dailyRate >= props.dailyRateThresholds.red) return Colors.RED;
-  if (dailyRate >= props.dailyRateThresholds.orange) return Colors.ORANGE;
-  if (dailyRate >= props.dailyRateThresholds.yellow) return Colors.YELLOW;
-  return Colors.BLUE;
-}
-
-function worstClass(positivity: number, dailyRate: number): Colors {
-  const pClass = positivityClass(positivity);
-  const rClass = dailyRateClass(dailyRate);
-  if (pClass == Colors.RED || rClass == Colors.RED) return Colors.RED;
-  if (pClass == Colors.ORANGE || rClass == Colors.ORANGE) return Colors.ORANGE;
-  if (pClass == Colors.YELLOW || rClass == Colors.YELLOW) return Colors.YELLOW;
-  return Colors.BLUE;
 }
 </script>
