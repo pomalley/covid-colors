@@ -22,7 +22,7 @@ A separate process pulls the data daily from the DPH site and puts it in a publi
 
 ## Technical details
 
-This uses the [Quasar framework](https://quasar.dev/), and all data retrieval and computation is done client-side. It can therefore be hosted on any static site, such as in a Github repository's [Github Page](https://pages.github.com/).
+This uses the [Quasar framework](https://quasar.dev/), and all data retrieval and computation is done client-side. It can therefore be hosted entirely statically, such as in a Github repository's [Github Page](https://pages.github.com/).
 
 To hack on it, clone the repo and fire up your `npm` or `yarn`:
 
@@ -45,3 +45,5 @@ quasar build
 ```
 
 For deployment, simply copy the `build` output (everything in the `dist/spa` directory) to wherever it will be hosted. For github pages, this is simply the `docs/` directory (and then push the changes back to github).
+
+This project is under the MIT license, so do what you like with it.
